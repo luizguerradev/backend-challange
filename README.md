@@ -108,9 +108,9 @@ bun test --coverage
 ## 🗺️ Roadmap de Implementação
 
 - [x] **Issue #1:** Core Aggregates & Value Objects (`Wallet`, `Ledger`, `Wager`, `Money VO`)
-- [ ] **Issue #2:** Mapeamentos MikroORM e Repositórios com Pessimistic Locking
-- [ ] **Issue #3:** Filtro Atômico de Idempotência e Validação de Payload Hash
-- [ ] **Issue #4:** Transactional Outbox Pattern & Background SQS FIFO Publisher
-- [ ] **Issue #5:** Consumidor SQS FIFO com Inbox Pattern e DLQ
+- [x] **Issue #2:** Mapeamentos MikroORM e Repositórios com Pessimistic Locking
+- [x] **Issue #3:** Filtro Atômico de Idempotência e Validação de Payload Hash
+- [x] **Issue #4:** Transactional Outbox Pattern & Background SQS FIFO Publisher
+- [x] **Issue #5:** Consumidor SQS FIFO com Inbox Pattern e DLQ
 - [ ] **Issue #6:** Endpoints HTTP Webhooks (`/bet`, `/win`, `/rollback`) e Swagger
 - [ ] **Issue #7:** Testes de Carga & Estresse de Concorrência (100 requisições simultâneas sem drift)
