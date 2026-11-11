@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Money } from '../../common/money.vo';
 import { WalletLedgerEntry, LedgerDirection } from './wallet-ledger-entry.entity';
 
@@ -9,121 +8,132 @@ export class InsufficientFundsError extends Error {
   }
 }
 
-export class CurrencyMismatchError extends Error {
-  constructor(expected: string, received: string) {
-    super(`Currency mismatch. Expected ${expected}, received ${received}`);
-    this.name = 'CurrencyMismatchError';
-  }
+export interface WalletState {
+  id: string;
+  playerId: string;
+  currency: string;
+  balance: Money;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class Wallet {
-  private readonly _id: string;
-  private readonly _playerId: string;
-  private readonly _currency: string;
-  private _balance: Money;
-  private _version: number;
-  private readonly _createdAt: Date;
-  private _updatedAt: Date;
+  private constructor(
+    public readonly id: string,
+    public readonly playerId: string,
+    public readonly currency: string,
+    private _balance: Money,
+    private _version: number,
+    public readonly createdAt: Date,
+    private _updatedAt: Date,
+  ) {}
 
-  private constructor(params: {
+  static open(props: {
     id: string;
     playerId: string;
-    currency: string;
-    balance: Money;
-    version: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
-    this._id = params.id;
-    this._playerId = params.playerId;
-    this._currency = params.currency;
-    this._balance = params.balance;
-    this._version = params.version;
-    this._createdAt = params.createdAt;
-    this._updatedAt = params.updatedAt;
-  }
-
-  static create(playerId: string, currency: string, initialBalance = Money.zero(currency)): Wallet {
+    initialBalance: Money;
+  }): { wallet: Wallet; openingEntry?: WalletLedgerEntry } {
     const now = new Date();
-    return new Wallet({
-      id: randomUUID(),
-      playerId,
-      currency,
-      balance: initialBalance,
-      version: 1,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const wallet = new Wallet(
+      props.id,
+      props.playerId,
+      props.initialBalance.currency,
+      props.initialBalance,
+      1,
+      now,
+      now,
+    );
+
+    let openingEntry: WalletLedgerEntry | undefined;
+    if (props.initialBalance.isPositive()) {
+      openingEntry = WalletLedgerEntry.create({
+        walletId: wallet.id,
+        transactionId: props.id, // ID da operação de abertura
+        direction: LedgerDirection.CREDIT,
+        money: props.initialBalance,
+        balanceBefore: Money.zero(props.initialBalance.currency),
+        balanceAfter: props.initialBalance,
+        createdAt: now,
+      });
+    }
+
+    return { wallet, openingEntry };
   }
 
-  static reconstitute(params: {
-    id: string;
-    playerId: string;
-    currency: string;
-    balance: Money;
-    version: number;
-    createdAt: Date;
-    updatedAt: Date;
-  }): Wallet {
-    return new Wallet(params);
+  static rehydrate(state: WalletState): Wallet {
+    return new Wallet(
+      state.id,
+      state.playerId,
+      state.currency,
+      state.balance,
+      state.version,
+      state.createdAt,
+      state.updatedAt,
+    );
+  }
+
+  get balance(): Money {
+    return this._balance;
+  }
+
+  get version(): number {
+    return this._version;
+  }
+
+  get updatedAt(): Date {
+    return this._updatedAt;
   }
 
   debit(amount: Money, transactionId: string): WalletLedgerEntry {
-    this.assertCurrency(amount);
+    this.assertSameCurrency(amount);
 
     if (this._balance.isLessThan(amount)) {
-      throw new InsufficientFundsError(
-        this._balance.format(),
-        amount.format(),
-      );
+      throw new InsufficientFundsError(this._balance.toString(), amount.toString());
     }
 
     const balanceBefore = this._balance;
     const balanceAfter = this._balance.subtract(amount);
 
     this._balance = balanceAfter;
+    this._version += 1;
     this._updatedAt = new Date();
 
     return WalletLedgerEntry.create({
-      walletId: this._id,
+      walletId: this.id,
       transactionId,
       direction: LedgerDirection.DEBIT,
-      amount,
+      money: amount,
       balanceBefore,
       balanceAfter,
+      createdAt: this._updatedAt,
     });
   }
 
   credit(amount: Money, transactionId: string): WalletLedgerEntry {
-    this.assertCurrency(amount);
+    this.assertSameCurrency(amount);
 
     const balanceBefore = this._balance;
     const balanceAfter = this._balance.add(amount);
 
     this._balance = balanceAfter;
+    this._version += 1;
     this._updatedAt = new Date();
 
     return WalletLedgerEntry.create({
-      walletId: this._id,
+      walletId: this.id,
       transactionId,
       direction: LedgerDirection.CREDIT,
-      amount,
+      money: amount,
       balanceBefore,
       balanceAfter,
+      createdAt: this._updatedAt,
     });
   }
 
-  private assertCurrency(money: Money): void {
-    if (money.currency !== this._currency) {
-      throw new CurrencyMismatchError(this._currency, money.currency);
+  private assertSameCurrency(money: Money): void {
+    if (this.currency !== money.currency) {
+      throw new Error(`Currency mismatch: wallet (${this.currency}) vs operation (${money.currency})`);
     }
   }
-
-  get id(): string { return this._id; }
-  get playerId(): string { return this._playerId; }
-  get currency(): string { return this._currency; }
-  get balance(): Money { return this._balance; }
-  get version(): number { return this._version; }
-  get createdAt(): Date { return this._createdAt; }
-  get updatedAt(): Date { return this._updatedAt; }
 }

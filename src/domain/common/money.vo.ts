@@ -1,4 +1,10 @@
 import { Decimal } from 'decimal.js';
+
+export interface MoneyProps {
+  amount: string;   
+  currency: string; 
+}
+
 export class InvalidMoneyAmountError extends Error {
   constructor(message: string) {
     super(message);
@@ -6,69 +12,99 @@ export class InvalidMoneyAmountError extends Error {
   }
 }
 
+export class CurrencyMismatchError extends Error {
+  constructor(expected: string, received: string) {
+    super(`Currency mismatch: expected ${expected}, got ${received}`);
+    this.name = 'CurrencyMismatchError';
+  }
+}
+
 export class Money {
-  private readonly _amount: Decimal;
-  private readonly _currency: string;
+  private static readonly DECIMAL_REGEX = /^-?\d+(\.\d{1,2})?$/;
 
-  private constructor(amount: Decimal, currency: string) {
-    this._amount = amount;
-    this._currency = currency.toUpperCase(); 
-  }
+  private constructor(
+    private readonly value: Decimal,
+    public readonly currency: string,
+  ) {}
 
-  static fromNumber(amount: number, currency: string): Money {
-    if (!Number.isFinite(amount)) {
-      throw new InvalidMoneyAmountError('Amount must be a finite number');
+  static from(props: MoneyProps): Money {
+    if (!props.amount || typeof props.amount !== 'string') {
+      throw new InvalidMoneyAmountError('Amount must be a non-empty string');
     }
-    return new Money(new Decimal(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN), currency);
-  }
 
-  static fromString(amount: string, currency: string): Money {
+    const trimmed = props.amount.trim();
+    if (!Money.DECIMAL_REGEX.test(trimmed)) {
+      throw new InvalidMoneyAmountError(`Invalid amount format: "${props.amount}". Max 2 decimal places allowed.`);
+    }
+
     try {
-      const dec = new Decimal(amount);
-      return new Money(dec.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN), currency);
+      const dec = new Decimal(trimmed);
+      if (!dec.isFinite()) {
+        throw new InvalidMoneyAmountError('Amount must be finite');
+      }
+      return new Money(dec.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN), props.currency.toUpperCase());
     } catch {
-      throw new InvalidMoneyAmountError(`Invalid money representation: ${amount}`);
+      throw new InvalidMoneyAmountError(`Invalid money amount: "${props.amount}"`);
     }
   }
 
   static zero(currency: string): Money {
-    return new Money(new Decimal(0), currency);
+    return new Money(new Decimal(0), currency.toUpperCase());
   }
 
   add(other: Money): Money {
-    this.assertCurrencyMatch(other);
-    return new Money(this._amount.plus(other._amount), this._currency);
+    this.assertSameCurrency(other);
+    return new Money(this.value.plus(other.value), this.currency);
   }
 
   subtract(other: Money): Money {
-    this.assertCurrencyMatch(other);
-    return new Money(this._amount.minus(other._amount), this._currency);
+    this.assertSameCurrency(other);
+    return new Money(this.value.minus(other.value), this.currency);
   }
 
-  isLessThan(other: Money): boolean {
-    this.assertCurrencyMatch(other);
-    return this._amount.lessThan(other._amount);
+  negate(): Money {
+    return new Money(this.value.negated(), this.currency);
+  }
+
+  isZero(): boolean {
+    return this.value.isZero();
+  }
+
+  isPositive(): boolean {
+    return this.value.isPositive() && !this.value.isZero();
   }
 
   isNegative(): boolean {
-    return this._amount.isNegative();
+    return this.value.isNegative();
   }
 
-  format(): string {
-    return this._amount.toFixed(2);
+  isLessThan(other: Money): boolean {
+    this.assertSameCurrency(other);
+    return this.value.lessThan(other.value);
   }
 
-  private assertCurrencyMatch(other: Money): void {
-    if (this._currency !== other._currency) {
-      throw new Error(`Currency mismatch: ${this._currency} vs ${other._currency}`);
+  equals(other: Money): boolean {
+    return this.currency === other.currency && this.value.equals(other.value);
+  }
+
+  toJSON(): MoneyProps {
+    return {
+      amount: this.toString(),
+      currency: this.currency,
+    };
+  }
+
+  toString(): string {
+    return this.value.toFixed(2);
+  }
+
+  private assertSameCurrency(other: Money): void {
+    if (this.currency !== other.currency) {
+      throw new CurrencyMismatchError(this.currency, other.currency);
     }
   }
 
   get amount(): Decimal {
-    return this._amount;
-  }
-
-  get currency(): string {
-    return this._currency;
+    return this.value;
   }
 }
