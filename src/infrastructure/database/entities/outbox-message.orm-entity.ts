@@ -22,8 +22,8 @@ export const OutboxMessageSchema = new EntitySchema<OutboxMessageOrmEntity>({
     payload: { type: 'jsonb' },
     occurredAt: { fieldName: 'occurred_at', type: 'timestamptz' },
     attempts: { type: 'integer', default: 0 },
-    nextAttemptAt: { fieldName: 'next_attempt_at', type: 'timestamptz', nullable: true, index: true },
-    publishedAt: { fieldName: 'published_at', type: 'timestamptz', nullable: true, index: true },
+    nextAttemptAt: { fieldName: 'next_attempt_at', type: 'timestamptz', nullable: true },
+    publishedAt: { fieldName: 'published_at', type: 'timestamptz', nullable: true },
     createdAt: { fieldName: 'created_at', type: 'timestamptz', defaultRaw: 'now()' },
   },
 });

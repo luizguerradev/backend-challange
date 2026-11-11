@@ -1,12 +1,5 @@
 import { randomUUID } from 'node:crypto';
-
-export interface EnqueueOutboxProps {
-  id?: string;
-  aggregateId: string;
-  eventType: string;
-  payload: Readonly<Record<string, unknown>>;
-  occurredAt?: Date;
-}
+import type { IntegrationEvent } from './integration-event';
 
 export interface OutboxMessageState {
   id: string;
@@ -17,6 +10,7 @@ export interface OutboxMessageState {
   attempts: number;
   nextAttemptAt?: Date;
   publishedAt?: Date;
+  createdAt: Date;
 }
 
 export class OutboxMessage {
@@ -27,19 +21,23 @@ export class OutboxMessage {
     public readonly payload: Readonly<Record<string, unknown>>,
     public readonly occurredAt: Date,
     private _attempts: number,
+    public readonly createdAt: Date,
     private _nextAttemptAt?: Date,
     private _publishedAt?: Date,
   ) {}
 
-  static enqueue(props: EnqueueOutboxProps): OutboxMessage {
+  static enqueue<T>(event: IntegrationEvent<T>): OutboxMessage {
+    const now = new Date();
     return new OutboxMessage(
-      props.id ?? randomUUID(),
-      props.aggregateId,
-      props.eventType,
-      props.payload,
-      props.occurredAt ?? new Date(),
+      randomUUID(),
+      event.aggregateId,
+      event.eventType,
+      event.toJSON(),
+      event.occurredAt,
       0,
-      new Date(),
+      now,
+      now, // pronto para envio imediato
+      undefined,
     );
   }
 
@@ -51,14 +49,23 @@ export class OutboxMessage {
       state.payload,
       state.occurredAt,
       state.attempts,
+      state.createdAt,
       state.nextAttemptAt,
       state.publishedAt,
     );
   }
 
-  get attempts(): number { return this._attempts; }
-  get nextAttemptAt(): Date | undefined { return this._nextAttemptAt; }
-  get publishedAt(): Date | undefined { return this._publishedAt; }
+  get attempts(): number {
+    return this._attempts;
+  }
+
+  get nextAttemptAt(): Date | undefined {
+    return this._nextAttemptAt;
+  }
+
+  get publishedAt(): Date | undefined {
+    return this._publishedAt;
+  }
 
   isPending(): boolean {
     return this._publishedAt === undefined;
@@ -67,17 +74,22 @@ export class OutboxMessage {
   isDue(now: Date = new Date()): boolean {
     if (!this.isPending()) return false;
     if (!this._nextAttemptAt) return true;
-    return this._nextAttemptAt <= now;
+    return this._nextAttemptAt.getTime() <= now.getTime();
   }
 
   markPublished(at: Date = new Date()): void {
+    if (this._publishedAt) {
+      throw new Error(`OutboxMessage ${this.id} is already published at ${this._publishedAt.toISOString()}`);
+    }
     this._publishedAt = at;
   }
 
-  scheduleRetry(now: Date = new Date()): void {
+  /**
+   * Backoff exponencial: 2 ^ attempts * 1000ms com teto de 60 segundos
+   */
+  scheduleRetry(now: Date = new Date(), baseDelayMs: number = 1000, maxDelayMs: number = 60000): void {
     this._attempts += 1;
-    // Exponential backoff: 2s, 4s, 8s, 16s...
-    const delaySeconds = Math.min(Math.pow(2, this._attempts), 60);
-    this._nextAttemptAt = new Date(now.getTime() + delaySeconds * 1000);
+    const delay = Math.min(Math.pow(2, this._attempts) * baseDelayMs, maxDelayMs);
+    this._nextAttemptAt = new Date(now.getTime() + delay);
   }
 }
