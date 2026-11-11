@@ -6,75 +6,89 @@ export enum LedgerDirection {
   CREDIT = 'CREDIT',
 }
 
+export interface CreateLedgerEntryProps {
+  id?: string;
+  walletId: string;
+  transactionId: string;
+  direction: LedgerDirection;
+  money: Money;
+  balanceBefore: Money;
+  balanceAfter: Money;
+  createdAt?: Date;
+}
+
+export interface LedgerEntryState {
+  id: string;
+  walletId: string;
+  transactionId: string;
+  direction: LedgerDirection;
+  money: Money;
+  balanceBefore: Money;
+  balanceAfter: Money;
+  createdAt: Date;
+}
+
+export class UnbalancedLedgerEntryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnbalancedLedgerEntryError';
+  }
+}
+
 export class WalletLedgerEntry {
-  private readonly _id: string;
-  private readonly _walletId: string;
-  private readonly _transactionId: string;
-  private readonly _direction: LedgerDirection;
-  private readonly _amount: Money;
-  private readonly _balanceBefore: Money;
-  private readonly _balanceAfter: Money;
-  private readonly _createdAt: Date;
+  private constructor(
+    public readonly id: string,
+    public readonly walletId: string,
+    public readonly transactionId: string,
+    public readonly direction: LedgerDirection,
+    public readonly money: Money,
+    public readonly balanceBefore: Money,
+    public readonly balanceAfter: Money,
+    public readonly createdAt: Date,
+  ) {}
 
-  private constructor(params: {
-    id: string;
-    walletId: string;
-    transactionId: string;
-    direction: LedgerDirection;
-    amount: Money;
-    balanceBefore: Money;
-    balanceAfter: Money;
-    createdAt: Date;
-  }) {
-    this._id = params.id;
-    this._walletId = params.walletId;
-    this._transactionId = params.transactionId;
-    this._direction = params.direction;
-    this._amount = params.amount;
-    this._balanceBefore = params.balanceBefore;
-    this._balanceAfter = params.balanceAfter;
-    this._createdAt = params.createdAt;
+  static create(props: CreateLedgerEntryProps): WalletLedgerEntry {
+    const entry = new WalletLedgerEntry(
+      props.id ?? randomUUID(),
+      props.walletId,
+      props.transactionId,
+      props.direction,
+      props.money,
+      props.balanceBefore,
+      props.balanceAfter,
+      props.createdAt ?? new Date(),
+    );
+
+    if (!entry.isBalanced()) {
+      throw new UnbalancedLedgerEntryError(
+        `Ledger entry calculation invalid: before (${props.balanceBefore.toString()}) ` +
+        `${props.direction === LedgerDirection.CREDIT ? '+' : '-'} ` +
+        `amount (${props.money.toString()}) !== after (${props.balanceAfter.toString()})`
+      );
+    }
+
+    return entry;
   }
 
-  static create(params: {
-    walletId: string;
-    transactionId: string;
-    direction: LedgerDirection;
-    amount: Money;
-    balanceBefore: Money;
-    balanceAfter: Money;
-  }): WalletLedgerEntry {
-    return new WalletLedgerEntry({
-      id: randomUUID(),
-      walletId: params.walletId,
-      transactionId: params.transactionId,
-      direction: params.direction,
-      amount: params.amount,
-      balanceBefore: params.balanceBefore,
-      balanceAfter: params.balanceAfter,
-      createdAt: new Date(),
-    });
+  static rehydrate(state: LedgerEntryState): WalletLedgerEntry {
+    return new WalletLedgerEntry(
+      state.id,
+      state.walletId,
+      state.transactionId,
+      state.direction,
+      state.money,
+      state.balanceBefore,
+      state.balanceAfter,
+      state.createdAt,
+    );
   }
 
-  static reconstitute(params: {
-    id: string;
-    walletId: string;
-    transactionId: string;
-    direction: LedgerDirection;
-    amount: Money;
-    balanceBefore: Money;
-    balanceAfter: Money;
-    createdAt: Date;
-  }): WalletLedgerEntry {
-    return new WalletLedgerEntry(params);
-  }
+  isBalanced(): boolean {
+    const calculated =
+      this.direction === LedgerDirection.CREDIT
+        ? this.balanceBefore.add(this.money)
+        : this.balanceBefore.subtract(this.money);
 
-  get id(): string { return this._id; }
-  get walletId(): string { return this._walletId; }
-  get transactionId(): string { return this._transactionId; }
-  get direction(): LedgerDirection { return this._direction; }
-  get amount(): Money { return this._amount; }
-  get balanceBefore(): Money { return this._balanceBefore; }
-  get balanceAfter(): Money { return this._balanceAfter; }
-  get createdAt(): Date { return this._createdAt; }
+    return calculated.equals(this.balanceAfter);
+  }
 }

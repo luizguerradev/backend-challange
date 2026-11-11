@@ -1,187 +1,223 @@
 import { randomUUID } from 'node:crypto';
-import { Money } from '../../common/money.vo.js';
+import { Money } from '../../common/money.vo';
+import { LedgerDirection } from '../../wallet/entity/wallet-ledger-entry.entity';
 
-export enum WagerKind {
+export enum WagerTransactionKind {
+  OPENING = 'OPENING',
   BET = 'BET',
   WIN = 'WIN',
+  LOSS = 'LOSS',
+  REFUND = 'REFUND',
   ROLLBACK = 'ROLLBACK',
 }
 
-export enum WagerStatus {
+export enum WagerTransactionStatus {
   PENDING = 'PENDING',
+  PENDING_REFERENCE = 'PENDING_REFERENCE',
   PROCESSED = 'PROCESSED',
   REJECTED = 'REJECTED',
-  ROLLED_BACK = 'ROLLED_BACK',
+  FAILED = 'FAILED',
 }
 
-export class InvalidWagerStateTransitionError extends Error {
-  constructor(from: WagerStatus, to: WagerStatus) {
-    super(`Cannot transition wager from ${from} to ${to}`);
-    this.name = 'InvalidWagerStateTransitionError';
+export type FailureCode =
+  | 'INSUFFICIENT_FUNDS'
+  | 'CURRENCY_MISMATCH'
+  | 'INVALID_PAYLOAD'
+  | 'IDEMPOTENCY_CONFLICT'
+  | 'REFERENCE_NOT_FOUND'
+  | 'REFERENCE_ALREADY_REVERTED'
+  | 'INVALID_REFERENCE_TYPE'
+  | 'REVERSAL_WOULD_CAUSE_NEGATIVE_BALANCE'
+  | 'INTERNAL_PROCESSING_ERROR';
+
+export class InvalidTransactionStateError extends Error {
+  constructor(currentStatus: WagerTransactionStatus, action: string) {
+    super(`Cannot execute ${action} on transaction with terminal status ${currentStatus}`);
+    this.name = 'InvalidTransactionStateError';
   }
+}
+
+export interface CreateWagerTransactionProps {
+  id?: string;
+  providerId: string;
+  externalTransactionId: string;
+  idempotencyKey?: string;
+  payloadHash: string;
+  walletId: string;
+  playerId: string;
+  roundId: string;
+  gameId: string;
+  kind: WagerTransactionKind;
+  money: Money;
+  referenceExternalTransactionId?: string;
+}
+
+export interface WagerTransactionState {
+  id: string;
+  providerId: string;
+  externalTransactionId: string;
+  idempotencyKey: string;
+  payloadHash: string;
+  walletId: string;
+  playerId: string;
+  roundId: string;
+  gameId: string;
+  kind: WagerTransactionKind;
+  money: Money;
+  referenceExternalTransactionId?: string;
+  createdAt: Date;
+  status: WagerTransactionStatus;
+  referenceTransactionId?: string;
+  failureCode?: FailureCode;
+  processedAt?: Date;
 }
 
 export class WagerTransaction {
-  private readonly _id: string;
-  private readonly _providerId: string;
-  private readonly _externalTransactionId: string;
-  private readonly _idempotencyKey: string;
-  private readonly _payloadHash: string;
-  private readonly _walletId: string;
-  private readonly _playerId: string;
-  private readonly _roundId: string;
-  private readonly _gameId: string;
-  private readonly _kind: WagerKind;
-  private readonly _amount: Money;
-  private readonly _currency: string;
-  private readonly _referenceExternalTransactionId?: string;
-  private _referenceTransactionId?: string;
-  private _status: WagerStatus;
-  private _failureCode?: string;
-  private _processedAt?: Date;
-  private readonly _createdAt: Date;
+  private constructor(
+    public readonly id: string,
+    public readonly providerId: string,
+    public readonly externalTransactionId: string,
+    public readonly idempotencyKey: string,
+    public readonly payloadHash: string,
+    public readonly walletId: string,
+    public readonly playerId: string,
+    public readonly roundId: string,
+    public readonly gameId: string,
+    public readonly kind: WagerTransactionKind,
+    public readonly money: Money,
+    public readonly referenceExternalTransactionId: string | undefined,
+    public readonly createdAt: Date,
+    private _status: WagerTransactionStatus,
+    private _referenceTransactionId?: string,
+    private _failureCode?: FailureCode,
+    private _processedAt?: Date,
+  ) {}
 
-  private constructor(params: {
-    id: string;
-    providerId: string;
-    externalTransactionId: string;
-    idempotencyKey: string;
-    payloadHash: string;
-    walletId: string;
-    playerId: string;
-    roundId: string;
-    gameId: string;
-    kind: WagerKind;
-    amount: Money;
-    currency: string;
-    referenceExternalTransactionId?: string;
-    referenceTransactionId?: string;
-    status: WagerStatus;
-    failureCode?: string;
-    processedAt?: Date;
-    createdAt: Date;
-  }) {
-    this._id = params.id;
-    this._providerId = params.providerId;
-    this._externalTransactionId = params.externalTransactionId;
-    this._idempotencyKey = params.idempotencyKey;
-    this._payloadHash = params.payloadHash;
-    this._walletId = params.walletId;
-    this._playerId = params.playerId;
-    this._roundId = params.roundId;
-    this._gameId = params.gameId;
-    this._kind = params.kind;
-    this._amount = params.amount;
-    this._currency = params.currency;
-    this._referenceExternalTransactionId = params.referenceExternalTransactionId;
-    this._referenceTransactionId = params.referenceTransactionId;
-    this._status = params.status;
-    this._failureCode = params.failureCode;
-    this._processedAt = params.processedAt;
-    this._createdAt = params.createdAt;
-  }
+  static create(props: CreateWagerTransactionProps): WagerTransaction {
+    if (props.kind === WagerTransactionKind.OPENING) {
+      throw new Error('OPENING transactions are internal and cannot be submitted via API or Queue');
+    }
 
-  static create(params: {
-    providerId: string;
-    externalTransactionId: string;
-    payloadHash: string;
-    walletId: string;
-    playerId: string;
-    roundId: string;
-    gameId: string;
-    kind: WagerKind;
-    amount: Money;
-    currency: string;
-    referenceExternalTransactionId?: string;
-  }): WagerTransaction {
-    const idempotencyKey = `${params.providerId}:${params.externalTransactionId}`;
-    return new WagerTransaction({
-      id: randomUUID(),
-      providerId: params.providerId,
-      externalTransactionId: params.externalTransactionId,
+    if ((props.kind === WagerTransactionKind.REFUND || props.kind === WagerTransactionKind.ROLLBACK) && !props.referenceExternalTransactionId) {
+      throw new Error(`${props.kind} requires referenceExternalTransactionId`);
+    }
+
+    const idempotencyKey = props.idempotencyKey ?? `${props.providerId}:${props.externalTransactionId}`;
+
+    return new WagerTransaction(
+      props.id ?? randomUUID(),
+      props.providerId,
+      props.externalTransactionId,
       idempotencyKey,
-      payloadHash: params.payloadHash,
-      walletId: params.walletId,
-      playerId: params.playerId,
-      roundId: params.roundId,
-      gameId: params.gameId,
-      kind: params.kind,
-      amount: params.amount,
-      currency: params.currency,
-      referenceExternalTransactionId: params.referenceExternalTransactionId,
-      status: WagerStatus.PENDING,
-      createdAt: new Date(),
-    });
+      props.payloadHash,
+      props.walletId,
+      props.playerId,
+      props.roundId,
+      props.gameId,
+      props.kind,
+      props.money,
+      props.referenceExternalTransactionId,
+      new Date(),
+      WagerTransactionStatus.PENDING,
+    );
   }
 
-  static reconstitute(params: {
-    id: string;
-    providerId: string;
-    externalTransactionId: string;
-    idempotencyKey: string;
-    payloadHash: string;
-    walletId: string;
-    playerId: string;
-    roundId: string;
-    gameId: string;
-    kind: WagerKind;
-    amount: Money;
-    currency: string;
-    referenceExternalTransactionId?: string;
-    referenceTransactionId?: string;
-    status: WagerStatus;
-    failureCode?: string;
-    processedAt?: Date;
-    createdAt: Date;
-  }): WagerTransaction {
-    return new WagerTransaction(params);
+  static rehydrate(state: WagerTransactionState): WagerTransaction {
+    return new WagerTransaction(
+      state.id,
+      state.providerId,
+      state.externalTransactionId,
+      state.idempotencyKey,
+      state.payloadHash,
+      state.walletId,
+      state.playerId,
+      state.roundId,
+      state.gameId,
+      state.kind,
+      state.money,
+      state.referenceExternalTransactionId,
+      state.createdAt,
+      state.status,
+      state.referenceTransactionId,
+      state.failureCode,
+      state.processedAt,
+    );
   }
 
-  markAsProcessed(): void {
-    if (this._status !== WagerStatus.PENDING) {
-      throw new InvalidWagerStateTransitionError(this._status, WagerStatus.PROCESSED);
-    }
-    this._status = WagerStatus.PROCESSED;
-    this._processedAt = new Date();
-  }
-
-  markAsRejected(failureCode: string): void {
-    if (this._status !== WagerStatus.PENDING) {
-      throw new InvalidWagerStateTransitionError(this._status, WagerStatus.REJECTED);
-    }
-    this._status = WagerStatus.REJECTED;
-    this._failureCode = failureCode;
-    this._processedAt = new Date();
-  }
-
-  markAsRolledBack(): void {
-    if (this._status !== WagerStatus.PROCESSED) {
-      throw new InvalidWagerStateTransitionError(this._status, WagerStatus.ROLLED_BACK);
-    }
-    this._status = WagerStatus.ROLLED_BACK;
-    this._processedAt = new Date();
-  }
-
-  setReferenceTransactionId(referenceTransactionId: string): void {
-    this._referenceTransactionId = referenceTransactionId;
-  }
-
-  get id(): string { return this._id; }
-  get providerId(): string { return this._providerId; }
-  get externalTransactionId(): string { return this._externalTransactionId; }
-  get idempotencyKey(): string { return this._idempotencyKey; }
-  get payloadHash(): string { return this._payloadHash; }
-  get walletId(): string { return this._walletId; }
-  get playerId(): string { return this._playerId; }
-  get roundId(): string { return this._roundId; }
-  get gameId(): string { return this._gameId; }
-  get kind(): WagerKind { return this._kind; }
-  get amount(): Money { return this._amount; }
-  get currency(): string { return this._currency; }
-  get referenceExternalTransactionId(): string | undefined { return this._referenceExternalTransactionId; }
+  get status(): WagerTransactionStatus { return this._status; }
   get referenceTransactionId(): string | undefined { return this._referenceTransactionId; }
-  get status(): WagerStatus { return this._status; }
-  get failureCode(): string | undefined { return this._failureCode; }
+  get failureCode(): FailureCode | undefined { return this._failureCode; }
   get processedAt(): Date | undefined { return this._processedAt; }
-  get createdAt(): Date { return this._createdAt; }
+
+  markProcessed(referenceTransactionId: string | undefined, at: Date = new Date()): void {
+    this.assertNonTerminal('markProcessed');
+    this._status = WagerTransactionStatus.PROCESSED;
+    this._referenceTransactionId = referenceTransactionId;
+    this._processedAt = at;
+  }
+
+  markPendingReference(): void {
+    this.assertNonTerminal('markPendingReference');
+    this._status = WagerTransactionStatus.PENDING_REFERENCE;
+  }
+
+  reject(code: FailureCode): void {
+    this.assertNonTerminal('reject');
+    this._status = WagerTransactionStatus.REJECTED;
+    this._failureCode = code;
+    this._processedAt = new Date();
+  }
+
+  fail(code: FailureCode): void {
+    this.assertNonTerminal('fail');
+    this._status = WagerTransactionStatus.FAILED;
+    this._failureCode = code;
+    this._processedAt = new Date();
+  }
+
+  isTerminal(): boolean {
+    return (
+      this._status === WagerTransactionStatus.PROCESSED ||
+      this._status === WagerTransactionStatus.REJECTED ||
+      this._status === WagerTransactionStatus.FAILED
+    );
+  }
+
+  affectsBalance(): boolean {
+    return this.kind !== WagerTransactionKind.LOSS;
+  }
+
+  requiresReference(): boolean {
+    return this.kind === WagerTransactionKind.REFUND || this.kind === WagerTransactionKind.ROLLBACK;
+  }
+
+  matchesPayload(payloadHash: string): boolean {
+    return this.payloadHash === payloadHash;
+  }
+
+  ledgerDirectionFor(reference?: WagerTransaction): LedgerDirection {
+    switch (this.kind) {
+      case WagerTransactionKind.OPENING:
+      case WagerTransactionKind.WIN:
+      case WagerTransactionKind.REFUND:
+        return LedgerDirection.CREDIT;
+      case WagerTransactionKind.BET:
+        return LedgerDirection.DEBIT;
+      case WagerTransactionKind.ROLLBACK: {
+        if (!reference) {
+          throw new Error('ROLLBACK requires reference transaction to determine direction');
+        }
+        // Inverte a direção da transação original
+        return reference.kind === WagerTransactionKind.BET ? LedgerDirection.CREDIT : LedgerDirection.DEBIT;
+      }
+      case WagerTransactionKind.LOSS:
+        throw new Error('LOSS transactions do not generate ledger entries');
+    }
+  }
+
+  private assertNonTerminal(action: string): void {
+    if (this.isTerminal()) {
+      throw new InvalidTransactionStateError(this._status, action);
+    }
+  }
 }

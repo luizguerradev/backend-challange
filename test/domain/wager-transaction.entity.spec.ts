@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { 
   WagerTransaction, 
-  WagerKind, 
-  WagerStatus, 
-  InvalidWagerStateTransitionError 
-} from '../../src/domain/wager/entity/wager-transaction.entity.js';
+  WagerTransactionKind, 
+  WagerTransactionStatus, 
+  InvalidTransactionStateError 
+} from '../../src/domain/wager/entity/wager-transaction.entity';
 import { Money } from '../../src/domain/common/money.vo';
+import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity';
 
 describe('WagerTransaction Entity', () => {
   const createSampleWager = () => {
@@ -13,56 +15,92 @@ describe('WagerTransaction Entity', () => {
       providerId: 'provider-a',
       externalTransactionId: 'ext-tx-100',
       payloadHash: 'hash-abc-123',
-      walletId: 'wallet-uuid',
+      walletId: randomUUID(),
       playerId: 'player-1',
       roundId: 'round-1',
-      gameId: 'game-1',
-      kind: WagerKind.BET,
-      amount: Money.fromNumber(25, 'BRL'),
-      currency: 'BRL',
+      gameId: 'fortune-tiger',
+      kind: WagerTransactionKind.BET,
+      money: Money.from({ amount: '25.00', currency: 'BRL' }),
     });
   };
 
   it('deve inicializar com status PENDING e montar a idempotencyKey', () => {
     const wager = createSampleWager();
 
-    expect(wager.status).toBe(WagerStatus.PENDING);
+    expect(wager.status).toBe(WagerTransactionStatus.PENDING);
     expect(wager.idempotencyKey).toBe('provider-a:ext-tx-100');
+    expect(wager.isTerminal()).toBe(false);
+    expect(wager.affectsBalance()).toBe(true);
     expect(wager.processedAt).toBeUndefined();
   });
 
   it('deve transicionar com sucesso de PENDING para PROCESSED', () => {
     const wager = createSampleWager();
-    wager.markAsProcessed();
+    wager.markProcessed(undefined);
 
-    expect(wager.status).toBe(WagerStatus.PROCESSED);
+    expect(wager.status).toBe(WagerTransactionStatus.PROCESSED);
+    expect(wager.isTerminal()).toBe(true);
     expect(wager.processedAt).toBeInstanceOf(Date);
   });
 
-  it('deve transicionar com sucesso de PENDING para REJECTED', () => {
+  it('deve transicionar com sucesso de PENDING para REJECTED com failureCode auditável', () => {
     const wager = createSampleWager();
-    wager.markAsRejected('INSUFFICIENT_FUNDS');
+    wager.reject('INSUFFICIENT_FUNDS');
 
-    expect(wager.status).toBe(WagerStatus.REJECTED);
+    expect(wager.status).toBe(WagerTransactionStatus.REJECTED);
     expect(wager.failureCode).toBe('INSUFFICIENT_FUNDS');
+    expect(wager.isTerminal()).toBe(true);
   });
 
-  it('deve transicionar de PROCESSED para ROLLED_BACK', () => {
-    const wager = createSampleWager();
-    wager.markAsProcessed();
-    wager.markAsRolledBack();
+  it('deve marcar como PENDING_REFERENCE e permitir reprocessamento', () => {
+    const refund = WagerTransaction.create({
+      providerId: 'provider-a',
+      externalTransactionId: 'refund-1',
+      payloadHash: 'hash-ref-1',
+      walletId: randomUUID(),
+      playerId: 'player-1',
+      roundId: 'round-1',
+      gameId: 'fortune-tiger',
+      kind: WagerTransactionKind.REFUND,
+      money: Money.from({ amount: '25.00', currency: 'BRL' }),
+      referenceExternalTransactionId: 'ext-tx-100',
+    });
 
-    expect(wager.status).toBe(WagerStatus.ROLLED_BACK);
+    refund.markPendingReference();
+    expect(refund.status).toBe(WagerTransactionStatus.PENDING_REFERENCE);
+    expect(refund.isTerminal()).toBe(false);
+
+    // Permite transicionar para PROCESSED quando a referência for encontrada
+    refund.markProcessed('internal-bet-uuid');
+    expect(refund.status).toBe(WagerTransactionStatus.PROCESSED);
+    expect(refund.referenceTransactionId).toBe('internal-bet-uuid');
   });
 
-  it('deve bloquear transições inválidas de estado', () => {
+  it('deve bloquear transições a partir de estados terminais', () => {
     const wager = createSampleWager();
-    
-    // Não pode dar rollback direto de PENDING
-    expect(() => wager.markAsRolledBack()).toThrow(InvalidWagerStateTransitionError);
+    wager.markProcessed(undefined);
 
-    wager.markAsProcessed();
-    // Não pode reprocessar quem já está PROCESSED
-    expect(() => wager.markAsProcessed()).toThrow(InvalidWagerStateTransitionError);
+    // Não pode transicionar aposta que já é terminal (PROCESSED)
+    expect(() => wager.markProcessed(undefined)).toThrow(InvalidTransactionStateError);
+    expect(() => wager.reject('INSUFFICIENT_FUNDS')).toThrow(InvalidTransactionStateError);
+    expect(() => wager.fail('INTERNAL_PROCESSING_ERROR')).toThrow(InvalidTransactionStateError);
+  });
+
+  it('deve determinar a direção correta do ledger por kind', () => {
+    const bet = createSampleWager();
+    expect(bet.ledgerDirectionFor()).toBe(LedgerDirection.DEBIT);
+
+    const win = WagerTransaction.create({
+      providerId: 'provider-a',
+      externalTransactionId: 'win-1',
+      payloadHash: 'hash-win-1',
+      walletId: randomUUID(),
+      playerId: 'player-1',
+      roundId: 'round-1',
+      gameId: 'fortune-tiger',
+      kind: WagerTransactionKind.WIN,
+      money: Money.from({ amount: '50.00', currency: 'BRL' }),
+    });
+    expect(win.ledgerDirectionFor()).toBe(LedgerDirection.CREDIT);
   });
 });
