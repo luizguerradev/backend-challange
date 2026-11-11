@@ -10,54 +10,54 @@
       "columns": {
         "consumer_name": {
           "name": "consumer_name",
-          "type": "text",
+          "type": "varchar(255)",
           "unsigned": false,
           "autoincrement": false,
           "primary": true,
           "nullable": false,
           "unique": false,
-          "length": null,
+          "length": 255,
           "precision": null,
           "scale": null,
           "default": null,
           "comment": null,
           "collation": null,
           "enumItems": [],
-          "mappedType": "text"
+          "mappedType": "string"
         },
         "message_id": {
           "name": "message_id",
-          "type": "text",
+          "type": "varchar(255)",
           "unsigned": false,
           "autoincrement": false,
           "primary": true,
           "nullable": false,
           "unique": false,
-          "length": null,
+          "length": 255,
           "precision": null,
           "scale": null,
           "default": null,
           "comment": null,
           "collation": null,
           "enumItems": [],
-          "mappedType": "text"
+          "mappedType": "string"
         },
         "payload_hash": {
           "name": "payload_hash",
-          "type": "char(64)",
+          "type": "varchar(255)",
           "unsigned": false,
           "autoincrement": false,
           "primary": false,
           "nullable": false,
           "unique": false,
-          "length": 64,
+          "length": 255,
           "precision": null,
           "scale": null,
           "default": null,
           "comment": null,
           "collation": null,
           "enumItems": [],
-          "mappedType": "character"
+          "mappedType": "string"
         },
         "processed_at": {
           "name": "processed_at",
@@ -87,7 +87,7 @@
           "length": 6,
           "precision": null,
           "scale": null,
-          "default": null,
+          "default": "now()",
           "comment": null,
           "collation": null,
           "enumItems": [],
@@ -97,8 +97,8 @@
       "indexes": [
         {
           "columnNames": [
-            "consumer_name",
-            "message_id"
+            "message_id",
+            "consumer_name"
           ],
           "composite": true,
           "constraint": true,
@@ -271,17 +271,6 @@
         }
       },
       "indexes": [
-        {
-          "columnNames": [
-            "published_at",
-            "next_attempt_at"
-          ],
-          "composite": true,
-          "constraint": false,
-          "keyName": "idx_outbox_pending_due",
-          "primary": false,
-          "unique": false
-        },
         {
           "columnNames": [
             "id"
@@ -612,52 +601,11 @@
       "indexes": [
         {
           "columnNames": [
-            "player_id"
-          ],
-          "composite": false,
-          "constraint": false,
-          "keyName": "idx_wager_player_id",
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "status"
-          ],
-          "composite": false,
-          "constraint": false,
-          "keyName": "idx_wager_status",
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "wallet_id"
-          ],
-          "composite": false,
-          "constraint": false,
-          "keyName": "idx_wager_wallet_id",
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
             "idempotency_key"
           ],
           "composite": false,
           "constraint": true,
-          "keyName": "uq_wager_idempotency_key",
-          "primary": false,
-          "unique": true
-        },
-        {
-          "columnNames": [
-            "provider_id",
-            "external_transaction_id"
-          ],
-          "composite": true,
-          "constraint": true,
-          "keyName": "uq_wager_provider_external_tx",
+          "keyName": "wager_transactions_idempotency_key_unique",
           "primary": false,
           "unique": true
         },
@@ -670,24 +618,52 @@
           "keyName": "wager_transactions_pkey",
           "primary": true,
           "unique": true
+        },
+        {
+          "columnNames": [
+            "player_id"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "wager_transactions_player_id_index",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "provider_id",
+            "external_transaction_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "wager_transactions_provider_id_external_transaction_id_unique",
+          "primary": false,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "status"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "wager_transactions_status_index",
+          "primary": false,
+          "unique": false
+        },
+        {
+          "columnNames": [
+            "wallet_id"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "wager_transactions_wallet_id_index",
+          "primary": false,
+          "unique": false
         }
       ],
       "checks": [],
       "triggers": [],
-      "foreignKeys": {
-        "wager_transactions_wallet_id_fkey": {
-          "columnNames": [
-            "wallet_id"
-          ],
-          "constraintName": "wager_transactions_wallet_id_fkey",
-          "localTableName": "public.wager_transactions",
-          "referencedColumnNames": [
-            "id"
-          ],
-          "referencedTableName": "public.wallets",
-          "deleteRule": "restrict"
-        }
-      },
+      "foreignKeys": {},
       "comment": null
     },
     {
@@ -761,6 +737,23 @@
           "collation": null,
           "enumItems": [],
           "mappedType": "datetime"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "varchar(3)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 3,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
         },
         "direction": {
           "name": "direction",
@@ -838,17 +831,7 @@
           ],
           "composite": false,
           "constraint": false,
-          "keyName": "idx_ledger_created_at",
-          "primary": false,
-          "unique": false
-        },
-        {
-          "columnNames": [
-            "wallet_id"
-          ],
-          "composite": false,
-          "constraint": false,
-          "keyName": "idx_ledger_wallet_id",
+          "keyName": "wallet_ledger_entries_created_at_index",
           "primary": false,
           "unique": false
         },
@@ -861,35 +844,21 @@
           "keyName": "wallet_ledger_entries_pkey",
           "primary": true,
           "unique": true
-        }
-      ],
-      "checks": [],
-      "triggers": [
+        },
         {
-          "name": "trg_prevent_ledger_update_delete",
-          "timing": "before",
-          "events": [
-            "delete",
-            "update"
-          ],
-          "forEach": "row",
-          "body": ""
-        }
-      ],
-      "foreignKeys": {
-        "wallet_ledger_entries_wallet_id_fkey": {
           "columnNames": [
             "wallet_id"
           ],
-          "constraintName": "wallet_ledger_entries_wallet_id_fkey",
-          "localTableName": "public.wallet_ledger_entries",
-          "referencedColumnNames": [
-            "id"
-          ],
-          "referencedTableName": "public.wallets",
-          "deleteRule": "restrict"
+          "composite": false,
+          "constraint": false,
+          "keyName": "wallet_ledger_entries_wallet_id_index",
+          "primary": false,
+          "unique": false
         }
-      },
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {},
       "comment": null
     },
     {
@@ -1019,17 +988,6 @@
       "indexes": [
         {
           "columnNames": [
-            "player_id",
-            "currency"
-          ],
-          "composite": true,
-          "constraint": true,
-          "keyName": "uq_wallet_player_currency",
-          "primary": false,
-          "unique": true
-        },
-        {
-          "columnNames": [
             "id"
           ],
           "composite": false,
@@ -1037,16 +995,20 @@
           "keyName": "wallets_pkey",
           "primary": true,
           "unique": true
-        }
-      ],
-      "checks": [
+        },
         {
-          "name": "chk_wallet_balance_non_negative",
-          "expression": "balance >= 0",
-          "definition": "CHECK ((balance >= (0)::numeric))",
-          "columnName": "balance"
+          "columnNames": [
+            "player_id",
+            "currency"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "wallets_player_id_currency_unique",
+          "primary": false,
+          "unique": true
         }
       ],
+      "checks": [],
       "triggers": [],
       "foreignKeys": {},
       "comment": null

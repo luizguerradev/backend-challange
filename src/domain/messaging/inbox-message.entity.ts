@@ -1,10 +1,3 @@
-export interface ReceiveInboxProps {
-  messageId: string;
-  consumerName: string;
-  payloadHash: string;
-  receivedAt?: Date;
-}
-
 export interface InboxMessageState {
   messageId: string;
   consumerName: string;
@@ -22,12 +15,13 @@ export class InboxMessage {
     private _processedAt?: Date,
   ) {}
 
-  static receive(props: ReceiveInboxProps): InboxMessage {
+  static receive(props: { messageId: string; consumerName: string; payloadHash: string }): InboxMessage {
     return new InboxMessage(
       props.messageId,
       props.consumerName,
       props.payloadHash,
-      props.receivedAt ?? new Date(),
+      new Date(),
+      undefined,
     );
   }
 
@@ -50,6 +44,9 @@ export class InboxMessage {
   }
 
   markProcessed(at: Date = new Date()): void {
+    if (this.isProcessed()) {
+      throw new Error(`InboxMessage ${this.messageId} já processada.`);
+    }
     this._processedAt = at;
   }
 }
