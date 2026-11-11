@@ -13,7 +13,8 @@
     "declaration": true,
     "removeComments": true,
     "sourceMap": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": ["node"]
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*","mikro-orm.config.ts"]
 }
