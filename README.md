@@ -221,4 +221,4 @@ bun run lint
 
 ## Licença
 
-Este projeto está sob licença não pública, conforme configuração atual do repositório.
+Este projeto está sob licença pública, pois é um desafio técnico [link](https://github.com/junglegaming/backend-challenge)
