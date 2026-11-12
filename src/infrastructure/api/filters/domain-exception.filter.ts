@@ -44,17 +44,21 @@ export class DomainExceptionFilter implements ExceptionFilter {
       errorCode = 'INSUFFICIENT_FUNDS';
       message = exception.message;
     } else if (exception instanceof Error) {
-      const pgCode = (exception as any).code;
+      const err = exception as any;
+      const pgCode = err.code;
       if (pgCode === '23505') {
         status = HttpStatus.CONFLICT;
         errorCode = 'UNIQUE_CONSTRAINT_VIOLATION';
         message = 'Duplicate resource or concurrent idempotency key conflict';
-      } else if (exception.message.includes('requires referenceExternalTransactionId')) {
+      } else if (err.code) {
+        errorCode = err.code;
+        message = err.message;
+      } else if (err.message.includes('requires referenceExternalTransactionId')) {
         status = HttpStatus.BAD_REQUEST;
         errorCode = 'INVALID_PAYLOAD';
-        message = exception.message;
+        message = err.message;
       } else {
-        message = exception.message;
+        message = err.message;
       }
     }
 
