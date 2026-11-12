@@ -451,4 +451,179 @@ export class ProcessWagerTransactionUseCase {
       processedAt: tx.processedAt?.toISOString() ?? null,
     };
   }
+  /**
+   * Reprocessa transações em estado PENDING_REFERENCE cuja transação de referência
+   * já tenha chegado e sido processada (Seção 7.1).
+   */
+  async retryPendingReferences(walletId?: string): Promise<number> {
+    const filter: Record<string, unknown> = {
+      status: WagerTransactionStatus.PENDING_REFERENCE,
+    };
+    if (walletId) {
+      filter.walletId = walletId;
+    }
+
+    const pendingList = await this.em.find(
+      WagerTransactionOrmEntity,
+      filter,
+      { orderBy: { createdAt: 'ASC' }, limit: 100 },
+    );
+
+    let resolvedCount = 0;
+
+    for (const pendingOrm of pendingList) {
+      if (!pendingOrm.referenceExternalTransactionId) continue;
+
+      const refOrm = await this.em.findOne(WagerTransactionOrmEntity, {
+        providerId: pendingOrm.providerId,
+        externalTransactionId: pendingOrm.referenceExternalTransactionId,
+      });
+
+      if (!refOrm) continue;
+
+      await this.em.transactional(async (txEm) => {
+        const lockedWalletOrm = await txEm.findOne(
+          WalletOrmEntity,
+          { id: pendingOrm.walletId },
+          { lockMode: LockMode.PESSIMISTIC_WRITE },
+        );
+        if (!lockedWalletOrm) return;
+
+        const currentPendingOrm = await txEm.findOne(
+          WagerTransactionOrmEntity,
+          { id: pendingOrm.id },
+          { lockMode: LockMode.PESSIMISTIC_WRITE },
+        );
+        if (
+          !currentPendingOrm ||
+          currentPendingOrm.status !== WagerTransactionStatus.PENDING_REFERENCE
+        ) {
+          return;
+        }
+
+        const wallet = WalletMapper.toDomain(lockedWalletOrm);
+        const pendingTx = WagerTransactionMapper.toDomain(currentPendingOrm);
+        const referenceTx = WagerTransactionMapper.toDomain(refOrm);
+        const context: EventContext = {
+          correlationId: randomUUID(),
+          causationId: pendingTx.id,
+        };
+        const eventsToPublish: IntegrationEvent<unknown>[] = [];
+        let ledgerEntry: WalletLedgerEntry | undefined;
+
+        if (referenceTx.status !== WagerTransactionStatus.PROCESSED) {
+          pendingTx.reject(FailureCode.INVALID_REFERENCE_TYPE);
+          eventsToPublish.push(
+            this.buildRejectedEvent(pendingTx, context, 'Referenced transaction is not PROCESSED'),
+          );
+        } else {
+          const alreadyReverted = await txEm.findOne(WagerTransactionOrmEntity, {
+            referenceTransactionId: referenceTx.id,
+            status: WagerTransactionStatus.PROCESSED,
+            kind: { $in: [WagerTransactionKind.REFUND, WagerTransactionKind.ROLLBACK] },
+          });
+
+          if (alreadyReverted) {
+            pendingTx.reject(FailureCode.REFERENCE_ALREADY_REVERTED);
+            eventsToPublish.push(
+              this.buildRejectedEvent(pendingTx, context, 'Reference transaction already reverted'),
+            );
+          } else {
+            try {
+              const direction = pendingTx.ledgerDirectionFor(referenceTx);
+              if (direction === LedgerDirection.DEBIT) {
+                ledgerEntry = wallet.debit(pendingTx.money, pendingTx.id);
+              } else {
+                ledgerEntry = wallet.credit(pendingTx.money, pendingTx.id);
+              }
+
+              pendingTx.markProcessed(referenceTx.id, new Date());
+
+              eventsToPublish.push(
+                WalletBalanceChanged.create({
+                  context,
+                  data: {
+                    walletId: wallet.id,
+                    transactionId: pendingTx.id,
+                    direction: ledgerEntry.direction,
+                    money: ledgerEntry.money.toJSON(),
+                    balanceBefore: ledgerEntry.balanceBefore.toJSON(),
+                    balanceAfter: ledgerEntry.balanceAfter.toJSON(),
+                    walletVersion: wallet.version,
+                  },
+                }),
+                WagerTransactionProcessed.create({
+                  context,
+                  data: {
+                    transactionId: pendingTx.id,
+                    providerId: pendingTx.providerId,
+                    externalTransactionId: pendingTx.externalTransactionId,
+                    idempotencyKey: pendingTx.idempotencyKey,
+                    walletId: pendingTx.walletId,
+                    playerId: pendingTx.playerId,
+                    roundId: pendingTx.roundId,
+                    gameId: pendingTx.gameId,
+                    kind: pendingTx.kind,
+                    money: pendingTx.money.toJSON(),
+                    balance: wallet.balance.toJSON(),
+                    referenceTransactionId: referenceTx.id,
+                    processedAt: (pendingTx.processedAt ?? new Date()).toISOString(),
+                  },
+                }),
+              );
+            } catch (err) {
+              if (err instanceof InsufficientFundsError) {
+                const code =
+                  pendingTx.kind === WagerTransactionKind.ROLLBACK
+                    ? FailureCode.REVERSAL_WOULD_CAUSE_NEGATIVE_BALANCE
+                    : FailureCode.INSUFFICIENT_FUNDS;
+                pendingTx.reject(code);
+                eventsToPublish.push(this.buildRejectedEvent(pendingTx, context, err.message));
+              } else {
+                throw err;
+              }
+            }
+          }
+        }
+
+        await txEm.upsert(WalletOrmEntity, WalletMapper.toOrmEntity(wallet));
+        await txEm.upsert(
+          WagerTransactionOrmEntity,
+          WagerTransactionMapper.toOrmEntity(pendingTx),
+        );
+
+        if (ledgerEntry) {
+          txEm.persist(
+            txEm.create(
+              WalletLedgerEntryOrmEntity,
+              WalletMapper.ledgerEntryToOrmEntity(ledgerEntry),
+            ),
+          );
+        }
+
+        const now = new Date();
+        for (const evt of eventsToPublish) {
+          const outboxMsg = OutboxMessage.enqueue(evt);
+          txEm.persist(
+            txEm.create(OutboxMessageOrmEntity, {
+              id: outboxMsg.id,
+              aggregateId: outboxMsg.aggregateId,
+              eventType: outboxMsg.eventType,
+              payload: outboxMsg.payload as Record<string, unknown>,
+              occurredAt: outboxMsg.occurredAt,
+              attempts: outboxMsg.attempts,
+              nextAttemptAt: outboxMsg.nextAttemptAt ?? null,
+              publishedAt: outboxMsg.publishedAt ?? null,
+              createdAt: now,
+            }),
+          );
+        }
+
+        await txEm.flush();
+        resolvedCount += 1;
+      });
+    }
+
+    return resolvedCount;
+  }
 }
