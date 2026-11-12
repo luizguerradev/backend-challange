@@ -1,4 +1,4 @@
-# Jungle Gaming Wagering API
+# Wagering & Wallet Microservice
 
 API backend para gestão de carteiras digitais e processamento de transações de apostas em um ambiente de gaming. A aplicação foi construída com NestJS, Bun, PostgreSQL e MikroORM, seguindo princípios de DDD, Clean Architecture e Transactional Outbox.
 
@@ -29,22 +29,25 @@ A estrutura do projeto organiza responsabilidades em camadas bem definidas:
 
 ```text
 src/
-├── domain/                 # Entidades, value objects e regras de negócio
-├── application/            # Casos de uso e serviços de aplicação
-├── infrastructure/         # Controladores HTTP, DTOs, banco, fila e adaptadores
-├── app.module.ts           # Registro dos módulos da aplicação
-├── app.controller.ts       # Endpoints básicos da aplicação
-├── main.ts                 # Bootstrap da API e configuração do Swagger
-├── ...
+├── domain/                  # Entidades, value objects e regras de negócio puras
+│   ├── wallet/              # Agregado de Carteiras (Regras de saldo, crédito, débito e moedas)
+│   ├── wagering/            # Entidades de Apostas e Transações (BET, WIN, LOSS, REFUND, ROLLBACK)
+│   └── shared/              # Objetos de valor compartilhados (Money, Eventos de Domínio)
+├── application/             # Casos de uso e serviços de aplicação
+│   ├── wallet/              # Serviços de gestão de carteiras e reconciliação
+│   └── wager/               # Processamento transacional de apostas com recuperação de fora de ordem
+└── infrastructure/          # Camada externa e adaptadores
+├── api/                 # Controladores HTTP (REST), DTOs, Filtros de Exceção Globais
+├── persistence/         # Repositórios MikroORM, EntitySchemas, Mapeadores e Migrations
+└── observability/       # Middleware de Correlation IDs, Structured JSON Logging e Health Checks
 ```
 
-Principais padrões aplicados:
-
-- Domain-Driven Design (DDD)
-- Clean Architecture
-- Transactional Outbox Pattern
-- Validação de entrada com `class-validator`
-- Documentação OpenAPI via Swagger
+### Principais Padrões e Decisões Aplicadas:
+* **Clean Architecture & DDD:** Isolamento total da regra de negócio na camada de domínio, livre de acoplamento direto com frameworks ou ORM.
+* **Lock Pessimista (`SELECT FOR UPDATE`):** Utilizado nativamente nas transações de saldo para serializar acessos simultâneos na mesma carteira, prevenindo condições de corrida (*race conditions*) e garantindo que o saldo nunca fique negativo.
+* **Transactional Outbox Pattern:** Garante consistência eventual e publicação atômica de eventos de integração via tabela outbox e workers com `SKIP LOCKED`.
+* **Idempotência Rigorosa:** Enforço de chaves de idempotência (`Idempotency-Key` / hash de payload) para evitar *double-spending* e garantir replay seguro de requisições.
+* **Imutabilidade do Ledger Contábil:** Proteção em nível de banco de dados por meio de triggers PL/pgSQL qu
 
 ## Pré-requisitos
 
