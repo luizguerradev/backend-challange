@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { IntegrationEvent } from '../integration-event';
-import type { MoneyProps } from '../../common/money.vo';
-import type { LedgerDirection } from '../../wallet/entity/wallet-ledger-entry.entity';
+import { IntegrationEvent } from '../integration-event.js';
+import type { MoneyProps } from '../../common/money.vo.js';
+import type { LedgerDirection } from '../../wallet/entity/wallet-ledger-entry.entity.js';
 
 export interface WalletBalanceChangedData {
   walletId: string;

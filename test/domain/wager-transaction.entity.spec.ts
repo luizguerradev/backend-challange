@@ -5,9 +5,9 @@ import {
   WagerTransactionKind, 
   WagerTransactionStatus, 
   InvalidTransactionStateError 
-} from '../../src/domain/wager/entity/wager-transaction.entity';
-import { Money } from '../../src/domain/common/money.vo';
-import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity';
+} from '../../src/domain/wager/entity/wager-transaction.entity.js';
+import { Money } from '../../src/domain/common/money.vo.js';
+import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity.js';
 
 describe('WagerTransaction Entity', () => {
   const createSampleWager = () => {

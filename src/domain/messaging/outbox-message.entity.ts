@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { IntegrationEvent } from './integration-event';
+import type { IntegrationEvent } from './integration-event.js';
 
 export interface OutboxMessageState {
   id: string;

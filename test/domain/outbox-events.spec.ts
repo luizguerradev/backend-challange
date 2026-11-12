@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { WalletBalanceChanged } from '../../src/domain/messaging/events/wallet-balance-changed.event';
+import { WalletBalanceChanged } from '../../src/domain/messaging/events/wallet-balance-changed.event.js';
 import { 
   WagerTransactionProcessed, 
   WagerTransactionRejected 
-} from '../../src/domain/messaging/events/wager-transaction-events';
-import { OutboxMessage } from '../../src/domain/messaging/outbox-message.entity';
-import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity';
-import { WagerTransactionKind, FailureCode } from '../../src/domain/wager/entity/wager-transaction.entity';
+} from '../../src/domain/messaging/events/wager-transaction-events.js';
+import { OutboxMessage } from '../../src/domain/messaging/outbox-message.entity.js';
+import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity.js';
+import { WagerTransactionKind, FailureCode } from '../../src/domain/wager/entity/wager-transaction.entity.js';
 
 describe('Transactional Outbox & Integration Event Envelopes', () => {
   it('deve instanciar WalletBalanceChanged com payload canônico e tipos de evento no envelope', () => {

@@ -1,8 +1,8 @@
 import { EntityManager } from '@mikro-orm/postgresql';
-import type { WagerTransactionRepositoryInterface } from '../../../domain/wager/repository/wager-transaction.repository.interface';
-import type { WagerTransaction } from '../../../domain/wager/entity/wager-transaction.entity';
-import { WagerTransactionOrmEntity } from '../entities/wager-transaction.orm-entity';
-import { WagerTransactionMapper } from '../mappers/wager-transaction.mapper';
+import type { WagerTransactionRepositoryInterface } from '../../../domain/wager/repository/wager-transaction.repository.interface.js';
+import type { WagerTransaction } from '../../../domain/wager/entity/wager-transaction.entity.js';
+import { WagerTransactionOrmEntity } from '../entities/wager-transaction.orm-entity.js';
+import { WagerTransactionMapper } from '../mappers/wager-transaction.mapper.js';
 
 export class MikroWagerTransactionRepository implements WagerTransactionRepositoryInterface {
   constructor(private readonly em: EntityManager) {}

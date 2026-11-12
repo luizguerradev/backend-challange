@@ -1,4 +1,4 @@
-import type { WagerTransaction } from '../entity/wager-transaction.entity';
+import type { WagerTransaction } from '../entity/wager-transaction.entity.js';
 
 export const WAGER_TRANSACTION_REPOSITORY_TOKEN = Symbol('WAGER_TRANSACTION_REPOSITORY_TOKEN');
 

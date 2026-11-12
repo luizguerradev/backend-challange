@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
-import config from '../../mikro-orm.config';
-import { MikroWalletRepository } from '../../src/infrastructure/database/repositories/mikro-wallet.repository';
-import { Wallet } from '../../src/domain/wallet/entity/wallet.entity';
-import { Money } from '../../src/domain/common/money.vo';
+import config from '../../mikro-orm.config.js';
+import { MikroWalletRepository } from '../../src/infrastructure/database/repositories/mikro-wallet.repository.js';
+import { Wallet } from '../../src/domain/wallet/entity/wallet.entity.js';
+import { Money } from '../../src/domain/common/money.vo.js';
 
 describe('Database Schema & Repository Invariants (PostgreSQL Real)', () => {
   let orm: MikroORM;

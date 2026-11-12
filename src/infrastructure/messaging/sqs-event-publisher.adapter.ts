@@ -1,5 +1,5 @@
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
-import type { EventPublisherPort, PublishMessageInput } from '../../domain/messaging/ports/event-publisher.port';
+import type { EventPublisherPort, PublishMessageInput } from '../../domain/messaging/ports/event-publisher.port.js';
 
 export class SqsEventPublisherAdapter implements EventPublisherPort {
   private client: SQSClient;

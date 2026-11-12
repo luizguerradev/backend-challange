@@ -2,12 +2,12 @@ import { defineConfig } from '@mikro-orm/postgresql';
 import { Migrator } from '@mikro-orm/migrations';
 import 'dotenv/config';
 
-import Migration20261111000001_InitialCoreTables from './src/infrastructure/database/migrations/Migration20261111000001_InitialCoreTables';
-import { WalletSchema } from './src/infrastructure/database/entities/wallet.orm-entity';
-import { WalletLedgerEntrySchema } from './src/infrastructure/database/entities/wallet-ledger-entry.orm-entity';
-import { WagerTransactionSchema } from './src/infrastructure/database/entities/wager-transaction.orm-entity';
-import { OutboxMessageSchema } from './src/infrastructure/database/entities/outbox-message.orm-entity';
-import { InboxMessageSchema } from './src/infrastructure/database/entities/inbox-message.orm-entity';
+import Migration20261111000001_InitialCoreTables from './src/infrastructure/database/migrations/Migration20261111000001_InitialCoreTables.js';
+import { WalletSchema } from './src/infrastructure/database/entities/wallet.orm-entity.js';
+import { WalletLedgerEntrySchema } from './src/infrastructure/database/entities/wallet-ledger-entry.orm-entity.js';
+import { WagerTransactionSchema } from './src/infrastructure/database/entities/wager-transaction.orm-entity.js';
+import { OutboxMessageSchema } from './src/infrastructure/database/entities/outbox-message.orm-entity.js';
+import { InboxMessageSchema } from './src/infrastructure/database/entities/inbox-message.orm-entity.js';
 
 export default defineConfig({
   host: process.env.DATABASE_HOST ?? 'localhost',

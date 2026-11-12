@@ -1,8 +1,8 @@
 import type { SQSClient } from '@aws-sdk/client-sqs';
 import { ReceiveMessageCommand, DeleteMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs';
 import type { EntityManager } from '@mikro-orm/postgresql';
-import { MikroInboxRepository } from '../../infrastructure/database/repositories/mikro-inbox.repository';
-import { InboxMessage } from '../../domain/messaging/inbox-message.entity';
+import { MikroInboxRepository } from '../../infrastructure/database/repositories/mikro-inbox.repository.js';
+import { InboxMessage } from '../../domain/messaging/inbox-message.entity.js';
 
 export interface SqsConsumerOptions {
   queueUrl: string;

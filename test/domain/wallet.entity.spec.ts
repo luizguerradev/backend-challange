@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { Wallet, InsufficientFundsError } from '../../src/domain/wallet/entity/wallet.entity';
-import { Money, CurrencyMismatchError } from '../../src/domain/common/money.vo';
-import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity';
+import { Wallet, InsufficientFundsError } from '../../src/domain/wallet/entity/wallet.entity.js';
+import { Money, CurrencyMismatchError } from '../../src/domain/common/money.vo.js';
+import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity.js';
 
 describe('Wallet Aggregate', () => {
   it('deve abrir uma carteira com saldo zero sem gerar lançamento de abertura', () => {

@@ -1,7 +1,7 @@
 import { EntityManager, LockMode } from '@mikro-orm/postgresql';
-import type { OutboxRepositoryInterface } from '../../../domain/messaging/repository/outbox.repository.interface';
-import { OutboxMessage } from '../../../domain/messaging/outbox-message.entity';
-import { OutboxMessageOrmEntity } from '../entities/outbox-message.orm-entity';
+import type { OutboxRepositoryInterface } from '../../../domain/messaging/repository/outbox.repository.interface.js';
+import { OutboxMessage } from '../../../domain/messaging/outbox-message.entity.js';
+import { OutboxMessageOrmEntity } from '../entities/outbox-message.orm-entity.js';
 
 export class MikroOutboxRepository implements OutboxRepositoryInterface {
   constructor(private readonly em: EntityManager) {}

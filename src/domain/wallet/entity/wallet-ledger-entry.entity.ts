@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Money } from '../../common/money.vo';
+import { Money } from '../../common/money.vo.js';
 
 export enum LedgerDirection {
   DEBIT = 'DEBIT',

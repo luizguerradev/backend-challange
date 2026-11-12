@@ -1,4 +1,4 @@
-import type { OutboxMessage } from '../outbox-message.entity';
+import type { OutboxMessage } from '../outbox-message.entity.js';
 
 export const OUTBOX_REPOSITORY_TOKEN = Symbol('OUTBOX_REPOSITORY_TOKEN');
 

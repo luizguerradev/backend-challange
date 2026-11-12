@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Money } from '../../common/money.vo';
-import { LedgerDirection } from '../../wallet/entity/wallet-ledger-entry.entity';
+import { Money } from '../../common/money.vo.js';
+import { LedgerDirection } from '../../wallet/entity/wallet-ledger-entry.entity.js';
 
 export enum WagerTransactionKind {
   OPENING = 'OPENING',
