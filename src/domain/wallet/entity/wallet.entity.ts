@@ -1,5 +1,5 @@
-import { Money } from '../../common/money.vo';
-import { WalletLedgerEntry, LedgerDirection } from './wallet-ledger-entry.entity';
+import { Money } from '../../common/money.vo.js';
+import { WalletLedgerEntry, LedgerDirection } from './wallet-ledger-entry.entity.js';
 
 export class InsufficientFundsError extends Error {
   constructor(current: string, required: string) {

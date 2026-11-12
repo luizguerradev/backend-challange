@@ -1,6 +1,6 @@
 import { EntityManager } from '@mikro-orm/postgresql';
-import { InboxMessage } from '../../../domain/messaging/inbox-message.entity';
-import { InboxMessageOrmEntity } from '../entities/inbox-message.orm-entity';
+import { InboxMessage } from '../../../domain/messaging/inbox-message.entity.js';
+import { InboxMessageOrmEntity } from '../entities/inbox-message.orm-entity.js';
 
 export class MikroInboxRepository {
   constructor(private readonly em: EntityManager) {}

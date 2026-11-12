@@ -1,6 +1,6 @@
 import type { EntityManager } from '@mikro-orm/postgresql';
-import { MikroOutboxRepository } from '../../infrastructure/database/repositories/mikro-outbox.repository';
-import type { EventPublisherPort } from '../../domain/messaging/ports/event-publisher.port';
+import { MikroOutboxRepository } from '../../infrastructure/database/repositories/mikro-outbox.repository.js';
+import type { EventPublisherPort } from '../../domain/messaging/ports/event-publisher.port.js';
 
 export interface OutboxPublisherWorkerOptions {
   batchSize?: number;

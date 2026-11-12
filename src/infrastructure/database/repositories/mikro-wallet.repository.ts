@@ -1,9 +1,9 @@
 import { EntityManager, LockMode } from '@mikro-orm/postgresql';
-import type { WalletRepositoryInterface } from '../../../domain/wallet/repository/wallet.repository.interface';
-import type { Wallet } from '../../../domain/wallet/entity/wallet.entity';
-import type { WalletLedgerEntry } from '../../../domain/wallet/entity/wallet-ledger-entry.entity';
-import { WalletOrmEntity } from '../entities/wallet.orm-entity';
-import { WalletMapper } from '../mappers/wallet.mapper';
+import type { WalletRepositoryInterface } from '../../../domain/wallet/repository/wallet.repository.interface.js';
+import type { Wallet } from '../../../domain/wallet/entity/wallet.entity.js';
+import type { WalletLedgerEntry } from '../../../domain/wallet/entity/wallet-ledger-entry.entity.js';
+import { WalletOrmEntity } from '../entities/wallet.orm-entity.js';
+import { WalletMapper } from '../mappers/wallet.mapper.js';
 
 export class MikroWalletRepository implements WalletRepositoryInterface {
   constructor(private readonly em: EntityManager) {}

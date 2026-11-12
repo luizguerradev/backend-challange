@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { SQSClient } from '@aws-sdk/client-sqs';
-import config from '../../mikro-orm.config';
-import { SqsFifoConsumerWorker } from '../../src/infrastructure/messaging/sqs-fifo-consumer.worker';
-import { MikroInboxRepository } from '../../src/infrastructure/database/repositories/mikro-inbox.repository';
+import config from '../../mikro-orm.config.js';
+import { SqsFifoConsumerWorker } from '../../src/infrastructure/messaging/sqs-fifo-consumer.worker.js';
+import { MikroInboxRepository } from '../../src/infrastructure/database/repositories/mikro-inbox.repository.js';
 
 // Mock do SQS Client corrigido para utilizar classes ES6
 vi.mock('@aws-sdk/client-sqs', () => ({

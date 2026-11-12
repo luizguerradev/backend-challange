@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { Wallet } from '../../src/domain/wallet/entity/wallet.entity';
-import { Money } from '../../src/domain/common/money.vo';
+import { Wallet } from '../../src/domain/wallet/entity/wallet.entity.js';
+import { Money } from '../../src/domain/common/money.vo.js';
 import { 
   WagerTransaction, 
   WagerTransactionKind, 
   WagerTransactionStatus 
-} from '../../src/domain/wager/entity/wager-transaction.entity';
-import { WalletMapper } from '../../src/infrastructure/database/mappers/wallet.mapper';
-import { WagerTransactionMapper } from '../../src/infrastructure/database/mappers/wager-transaction.mapper';
+} from '../../src/domain/wager/entity/wager-transaction.entity.js';
+import { WalletMapper } from '../../src/infrastructure/database/mappers/wallet.mapper.js';
+import { WagerTransactionMapper } from '../../src/infrastructure/database/mappers/wager-transaction.mapper.js';
 
 describe('Database Mappers', () => {
   it('deve converter Wallet de domínio para ORM e reidratar mantendo valores exatos', () => {

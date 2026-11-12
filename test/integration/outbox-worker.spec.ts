@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { randomUUID } from 'node:crypto';
-import config from '../../mikro-orm.config';
-import { MikroOutboxRepository } from '../../src/infrastructure/database/repositories/mikro-outbox.repository';
-import { OutboxMessage } from '../../src/domain/messaging/outbox-message.entity';
-import { WalletBalanceChanged } from '../../src/domain/messaging/events/wallet-balance-changed.event';
-import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity';
-import { OutboxPublisherWorker } from '../../src/application/messaging/outbox-publisher.worker';
-import type { EventPublisherPort, PublishMessageInput } from '../../src/domain/messaging/ports/event-publisher.port';
+import config from '../../mikro-orm.config.js';
+import { MikroOutboxRepository } from '../../src/infrastructure/database/repositories/mikro-outbox.repository.js';
+import { OutboxMessage } from '../../src/domain/messaging/outbox-message.entity.js';
+import { WalletBalanceChanged } from '../../src/domain/messaging/events/wallet-balance-changed.event.js';
+import { LedgerDirection } from '../../src/domain/wallet/entity/wallet-ledger-entry.entity.js';
+import { OutboxPublisherWorker } from '../../src/application/messaging/outbox-publisher.worker.js';
+import type { EventPublisherPort, PublishMessageInput } from '../../src/domain/messaging/ports/event-publisher.port.js';
 
 class InMemoryPublisherMock implements EventPublisherPort {
   public published: PublishMessageInput[] = [];

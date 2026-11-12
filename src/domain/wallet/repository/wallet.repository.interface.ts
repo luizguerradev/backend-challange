@@ -1,5 +1,5 @@
-import type { Wallet } from '../entity/wallet.entity';
-import type { WalletLedgerEntry } from '../entity/wallet-ledger-entry.entity';
+import type { Wallet } from '../entity/wallet.entity.js';
+import type { WalletLedgerEntry } from '../entity/wallet-ledger-entry.entity.js';
 
 export const WALLET_REPOSITORY_TOKEN = Symbol('WALLET_REPOSITORY_TOKEN');
 

@@ -1,8 +1,8 @@
-import { Wallet } from '../../../domain/wallet/entity/wallet.entity';
-import { WalletLedgerEntry, LedgerDirection } from '../../../domain/wallet/entity/wallet-ledger-entry.entity';
-import { Money } from '../../../domain/common/money.vo';
-import { WalletOrmEntity } from '../entities/wallet.orm-entity';
-import { WalletLedgerEntryOrmEntity } from '../entities/wallet-ledger-entry.orm-entity';
+import { Wallet } from '../../../domain/wallet/entity/wallet.entity.js';
+import { WalletLedgerEntry, LedgerDirection } from '../../../domain/wallet/entity/wallet-ledger-entry.entity.js';
+import { Money } from '../../../domain/common/money.vo.js';
+import { WalletOrmEntity } from '../entities/wallet.orm-entity.js';
+import { WalletLedgerEntryOrmEntity } from '../entities/wallet-ledger-entry.orm-entity.js';
 
 export class WalletMapper {
   static toDomain(orm: WalletOrmEntity): Wallet {

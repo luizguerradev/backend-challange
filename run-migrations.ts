@@ -1,7 +1,8 @@
+import process from 'node:process';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { Migrator } from '@mikro-orm/migrations';
 import config from './mikro-orm.config.js';
-import Migration20261110000001_InitialSchema from './src/infrastructure/database/migrations/Migration20261110000001_InitialSchema.js';
+import Migration20261110000001_InitialSchema from './src/infrastructure/database/migrations/Migration20261111000001_InitialCoreTables.js';
 
 async function run() {
   console.log('🔄 Conectando ao PostgreSQL...');

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { IntegrationEvent } from '../integration-event';
-import type { MoneyProps } from '../../common/money.vo';
-import type { EventContext } from './wallet-balance-changed.event';
-import type { WagerTransactionKind, FailureCode } from '../../wager/entity/wager-transaction.entity';
+import { IntegrationEvent } from '../integration-event.js';
+import type { MoneyProps } from '../../common/money.vo.js';
+import type { EventContext } from './wallet-balance-changed.event.js';
+import type { WagerTransactionKind, FailureCode } from '../../wager/entity/wager-transaction.entity.js';
 
 export interface WagerProcessedData {
   transactionId: string;

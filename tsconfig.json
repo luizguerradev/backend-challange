@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
     "target": "ES2022",
     "strict": true,
     "esModuleInterop": true,
@@ -16,5 +16,5 @@
     "outDir": "./dist",
     "types": ["node"]
   },
-  "include": ["src/**/*", "test/**/*","mikro-orm.config.ts"]
+  "include": ["src/**/*", "test/**/*", "mikro-orm.config.ts", "run-migrations.ts"]
 }

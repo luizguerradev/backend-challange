@@ -3,9 +3,9 @@ import {
   WagerTransactionKind, 
   WagerTransactionStatus, 
   FailureCode 
-} from '../../../domain/wager/entity/wager-transaction.entity';
-import { Money } from '../../../domain/common/money.vo';
-import { WagerTransactionOrmEntity } from '../entities/wager-transaction.orm-entity';
+} from '../../../domain/wager/entity/wager-transaction.entity.js';
+import { Money } from '../../../domain/common/money.vo.js';
+import { WagerTransactionOrmEntity } from '../entities/wager-transaction.orm-entity.js';
 
 export class WagerTransactionMapper {
   static toDomain(orm: WagerTransactionOrmEntity): WagerTransaction {
