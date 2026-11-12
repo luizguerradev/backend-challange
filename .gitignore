@@ -3,7 +3,9 @@ node_modules/
 dist/
 .env
 *.tsbuildinfo
-
+mikro-orm.config.js 
+mikro-orm.config.d.ts 
+mikro-orm.config.js.map
 # Compiled TypeScript artifacts outside dist/
 /*.js
 /*.d.ts

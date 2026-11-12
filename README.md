@@ -43,11 +43,12 @@ src/
 ```
 
 ### Principais Padrões e Decisões Aplicadas:
+
 * **Clean Architecture & DDD:** Isolamento total da regra de negócio na camada de domínio, livre de acoplamento direto com frameworks ou ORM.
 * **Lock Pessimista (`SELECT FOR UPDATE`):** Utilizado nativamente nas transações de saldo para serializar acessos simultâneos na mesma carteira, prevenindo condições de corrida (*race conditions*) e garantindo que o saldo nunca fique negativo.
 * **Transactional Outbox Pattern:** Garante consistência eventual e publicação atômica de eventos de integração via tabela outbox e workers com `SKIP LOCKED`.
 * **Idempotência Rigorosa:** Enforço de chaves de idempotência (`Idempotency-Key` / hash de payload) para evitar *double-spending* e garantir replay seguro de requisições.
-* **Imutabilidade do Ledger Contábil:** Proteção em nível de banco de dados por meio de triggers PL/pgSQL qu
+* **Imutabilidade do Ledger Contábil:** Proteção em nível de banco de dados por meio de triggers PL/pgSQL que impedem qualquer comando de `UPDATE` ou `DELETE` no histórico de lançamentos.
 
 ## Pré-requisitos
 
