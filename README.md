@@ -1,116 +1,220 @@
-# 🎰 Wagering & Real-Time Wallet Core Engine
+# Jungle Gaming Wagering API
 
-Motor financeiro distribuído de alta concorrência e processamento de apostas (Wagering API), desenhado sob os padrões de **Domain-Driven Design (DDD)**, **Double-Entry Bookkeeping (Ledger Imutável)** e mensageria confiável com **Transactional Outbox & Inbox Pattern**.
+API backend para gestão de carteiras digitais e processamento de transações de apostas em um ambiente de gaming. A aplicação foi construída com NestJS, Bun, PostgreSQL e MikroORM, seguindo princípios de DDD, Clean Architecture e Transactional Outbox.
 
-Projetado para operar com **zero tolerância a balance drift**, proteção estrita contra **race conditions** em carteiras de alta concorrência (*hot-wallets*) e garantia de **exatamente-uma-vez (effectively once)** no processamento de webhooks de provedores de jogos.
+## Visão geral
 
----
+Este serviço foi desenhado para atender cenários de iGaming com:
 
-## 🏛️ Destaques de Arquitetura & Engenharia
+- criação e consulta de carteiras por jogador;
+- manutenção de saldo e extrato contábil;
+- processamento de transações de aposta (`BET`, `WIN`, `LOSS`, `REFUND`, `ROLLBACK`);
+- idempotência por `Idempotency-Key` para evitar processamento duplicado;
+- auditoria de reconciliação entre saldo materializado e soma do ledger;
+- publicação de eventos via outbox para integrações assíncronas.
 
-* **Domínio Rico & Puro (DDD):** Entidades `Wallet`, `WalletLedgerEntry` e `WagerTransaction` totalmente desacopladas de frameworks e ORM, protegendo invariantes de negócio na memória antes da persistência.
-* **Aritmética Financeira Determinística:** Value Object `Money` baseado em `Decimal.js` com arredondamento bancário (`HALF_EVEN`) a 2 casas decimais, eliminando imprecisões de ponto flutuante binário.
-* **Ledger Imutável (Append-Only):** Todo débito ou crédito na carteira gera um registro estático de extrato contendo `balance_before` e `balance_after`. Uma trigger nativa em PL/pgSQL no PostgreSQL bloqueia fisicamente qualquer tentativa de `UPDATE` ou `DELETE` na tabela de extrato.
-* **Controle de Concorrência Pessimista:** Utilização de `SELECT ... FOR UPDATE` nas consultas de saldo para enfileirar operações na mesma carteira sem risco de saldo negativo ou leitura inconsistente sob tráfego concorrente.
-* **Idempotência Atômica:** Chave composta única em banco (`provider_id` + `external_transaction_id`) associada a verificação de hash SHA-256 do payload, detectando tentativas de repetição e impedindo adulteração de dados.
-* **Garantia de Entrega Distribuída:** 
-  * **Transactional Outbox:** Eventos publicados na mesma transação atômica do saldo.
-  * **Inbox Pattern:** Consumo de filas **AWS SQS FIFO** com controle de deduplicação e roteamento para **Dead Letter Queue (DLQ)**.
+## Stack principal
 
----
+- Node.js / TypeScript
+- NestJS
+- Bun
+- PostgreSQL
+- MikroORM
+- LocalStack (SQS)
+- Swagger / OpenAPI
 
-## 🛠️ Stack Tecnológica
+## Arquitetura
 
-| Camada | Tecnologia |
-| :--- | :--- |
-| **Runtime & Package Manager** | [Bun](https://bun.sh/) (Engine nativo de alta performance) |
-| **Linguagem** | TypeScript 5.x (Strict mode ativo) |
-| **Framework Web** | NestJS |
-| **Banco de Dados Relacional** | PostgreSQL 16 (Alpine) via Docker |
-| **Mapeamento & Migrations** | MikroORM v7 (Driver PostgreSQL) |
-| **Mensageria & Cloud Mock** | AWS SQS FIFO emulado via LocalStack |
-| **Test Runner & Asserções** | Vitest |
-
----
-
-## 📂 Estrutura de Pastas
+A estrutura do projeto organiza responsabilidades em camadas bem definidas:
 
 ```text
 src/
-├── domain/                      # Camada de Domínio Puro (Agnóstica a Frameworks)
-│   ├── common/                  # Value Objects compartilhados (Money VO)
-│   ├── wallet/                  # Agregado Wallet, Ledger e Regras de Saldo
-│   │   ├── entity/
-│   │   ├── value-objects/
-│   │   └── repository/
-│   └── wager/                   # Transações de apostas, Máquina de Estados e Idempotência
-│       ├── entity/
-│       ├── value-objects/
-│       └── repository/
-├── infrastructure/              # Adaptadores de Entrada e Saída
-│   ├── database/                # Entidades MikroORM, Mappers e Migrações SQL
-│   │   ├── entities/
-│   │   ├── mappers/
-│   │   └── migrations/
-│   └── messaging/               # Clientes AWS SQS, Poller de Outbox e Consumer de Inbox
-└── presentation/                # Controladores HTTP, DTOs e Swagger OpenAPI
-    └── http/
+├── domain/                 # Entidades, value objects e regras de negócio
+├── application/            # Casos de uso e serviços de aplicação
+├── infrastructure/         # Controladores HTTP, DTOs, banco, fila e adaptadores
+├── app.module.ts           # Registro dos módulos da aplicação
+├── app.controller.ts       # Endpoints básicos da aplicação
+├── main.ts                 # Bootstrap da API e configuração do Swagger
+├── ...
 ```
 
----
+Principais padrões aplicados:
 
-## 🚀 Como Executar o Ambiente
+- Domain-Driven Design (DDD)
+- Clean Architecture
+- Transactional Outbox Pattern
+- Validação de entrada com `class-validator`
+- Documentação OpenAPI via Swagger
 
-### 1. Pré-requisitos
-* Docker e Docker Compose instalados.
-* Bun instalado (`>= 1.2`).
+## Pré-requisitos
 
-### 2. Subir os Contêineres (PostgreSQL + LocalStack SQS)
+Antes de iniciar o projeto, certifique-se de ter instalado:
+
+- [Bun](https://bun.sh/)
+- [Docker Compose](https://docs.docker.com/compose/)
+
+## Inicialização rápida
+
+### 1) Subir infraestrutura local
+
 ```bash
 docker compose up -d
 ```
 
-### 3. Instalar Dependências
+Esse comando inicia:
+
+- PostgreSQL em `localhost:5432`
+- LocalStack em `localhost:4566` para SQS
+
+### 2) Instalar dependências
+
 ```bash
 bun install
 ```
 
-### 4. Executar as Migrações do Banco de Dados
-Aplica o schema, restrições e triggers de imutabilidade no PostgreSQL:
+### 3) Executar migrations
+
 ```bash
-bun run run-migrations.ts
+bun run migration:up
 ```
 
-### 5. Executar a Aplicação em Desenvolvimento
+### 4) Rodar a aplicação em desenvolvimento
+
 ```bash
 bun run start:dev
 ```
 
----
+A API será iniciada em:
 
-## 🧪 Testes Automatizados
+- `http://localhost:3000/api/v1`
+- documentação Swagger em `http://localhost:3000/docs`
 
-O projeto mantém suítes isoladas de testes unitários rápidos e testes de estresse/concorrência:
+## Variáveis de ambiente
+
+O projeto usa valores padrão para desenvolvimento local, mas também aceita overrides por variáveis de ambiente:
 
 ```bash
-# Executa todos os testes unitários do domínio
-bun run test
-
-# Executa os testes de integração e ponta a ponta (E2E)
-bun run test:e2e
-
-# Executa testes com relatório de cobertura
-bun test --coverage
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USER=wagering_user
+DATABASE_PASSWORD=wagering_pass
+DATABASE_NAME=wagering_db
+PORT=3000
 ```
 
----
+## Fluxo de uso
 
-## 🗺️ Roadmap de Implementação
+### Carteiras
 
-- [x] **Issue #1:** Core Aggregates & Value Objects (`Wallet`, `Ledger`, `Wager`, `Money VO`)
-- [x] **Issue #2:** Mapeamentos MikroORM e Repositórios com Pessimistic Locking
-- [x] **Issue #3:** Filtro Atômico de Idempotência e Validação de Payload Hash
-- [x] **Issue #4:** Transactional Outbox Pattern & Background SQS FIFO Publisher
-- [x] **Issue #5:** Consumidor SQS FIFO com Inbox Pattern e DLQ
-- [ ] **Issue #6:** Endpoints HTTP Webhooks (`/bet`, `/win`, `/rollback`) e Swagger
-- [ ] **Issue #7:** Testes de Carga & Estresse de Concorrência (100 requisições simultâneas sem drift)
+#### Criar carteira
+
+```http
+POST /api/v1/wallets
+Content-Type: application/json
+```
+
+```json
+{
+  "playerId": "player-123",
+  "initialBalance": 100.00
+}
+```
+
+#### Consultar carteira
+
+```http
+GET /api/v1/wallets/:walletId
+```
+
+#### Consultar ledger
+
+```http
+GET /api/v1/wallets/:walletId/ledger?limit=50&cursor=...
+```
+
+#### Reconciliar carteira
+
+```http
+POST /api/v1/wallets/:walletId/reconciliation
+```
+
+### Wagering / transações
+
+#### Processar transação
+
+```http
+POST /api/v1/wagering/transactions
+Idempotency-Key: <chave-unica>
+Content-Type: application/json
+```
+
+```json
+{
+  "providerId": "provider-1",
+  "externalTransactionId": "txn-001",
+  "playerId": "player-123",
+  "walletId": "wallet-456",
+  "roundId": "round-9",
+  "gameId": "game-abc",
+  "kind": "BET",
+  "money": {
+    "amount": 25.00,
+    "currency": "BRL"
+  }
+}
+```
+
+Condições importantes:
+
+- o header `Idempotency-Key` é obrigatório;
+- transações duplicadas com mesma chave e payload idêntico são tratadas como replay;
+- divergência de payload com a mesma chave gera conflito;
+- regras de negócio podem rejeitar operações, como saldo insuficiente.
+
+#### Consultar transação por ID interno
+
+```http
+GET /api/v1/wagering/transactions/:transactionId
+```
+
+#### Consultar transação por provedor e ID externo
+
+```http
+GET /api/v1/providers/:providerId/wagering/transactions/:externalTransactionId
+```
+
+## Testes
+
+Para executar a suíte de testes do projeto:
+
+```bash
+bun test
+```
+
+Para rodar a suíte e2e:
+
+```bash
+bun run test:e2e
+```
+
+Para checar o código com lint:
+
+```bash
+bun run lint
+```
+
+## Observabilidade e documentação
+
+- Swagger/OpenAPI: `http://localhost:3000/docs`
+- A aplicação expõe documentação e status de operação por meio do NestJS e do padrão de arquitetura adotado
+
+## Observações importantes
+
+- a API usa prefixo global `api/v1`;
+- a documentação OpenAPI descreve melhor os contratos esperados;
+- a camada de domínio e as regras de negócio ficam isoladas da infraestrutura;
+- o processamento assíncrono de eventos é feito por outbox, favorecendo consistência e resiliência.
+
+## Licença
+
+Este projeto está sob licença não pública, conforme configuração atual do repositório.
